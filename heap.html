@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Min-Heap Visualizer</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Min-Heap Visualizer</h1>
+      <p class="subtitle">
+        Create your heap from scratch and watch heapify operations animate
+      </p>
+
+      <div class="controls">
+        <div class="control-row">
+          <input type="number" id="inputValue" placeholder="Enter value" />
+          <button class="btn-insert" id="insertBtn">
+            <span>➕</span>
+            <span>Insert</span>
+          </button>
+          <button class="btn-delete" id="deleteBtn">
+            <span>🗑️</span>
+            <span>Delete Min</span>
+          </button>
+          <button class="btn-clear" id="clearBtn">
+            <span>↻</span>
+            <span>Clear All</span>
+          </button>
+        </div>
+        <div class="operation-status" id="operationStatus"></div>
+        <div class="step-description" id="stepDescription"></div>
+      </div>
+
+      <div class="visualizations">
+        <div class="viz-panel">
+          <h2 class="viz-title">Array Representation</h2>
+          <div class="array-container" id="arrayContainer">
+            <div class="empty-state">Heap is empty</div>
+          </div>
+        </div>
+
+        <div class="viz-panel">
+          <h2 class="viz-title">Binary Tree View</h2>
+          <div class="tree-container" id="treeContainer">
+            <div class="empty-state">Heap is empty</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-panel">
+        <h3 class="info-title">Heap Properties:</h3>
+        <ul class="info-list">
+          <li>
+            • <strong>Min-Heap:</strong> Parent nodes are always smaller than
+            their children
+          </li>
+          <li>
+            • <strong>Insert:</strong> Add to end, then heapify up (bubble up)
+          </li>
+          <li>
+            • <strong>Delete-Min:</strong> Remove root, move last element to
+            root, then heapify down
+          </li>
+          <li>
+            • <strong>Array Indices:</strong> Parent(i) = ⌊(i-1)/2⌋, Left(i) =
+            2i+1, Right(i) = 2i+2
+          </li>
+        </ul>
+      </div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
