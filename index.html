@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Min-Heap Visualizer</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css">
   </head>
   <body>
     <div class="container">
@@ -20,6 +20,10 @@
             <span>➕</span>
             <span>Insert</span>
           </button>
+          <button class="btn-random" id="insertRandomBtn">
+            <span>🎲</span>
+            <span>Insert Random</span>
+          </button>
           <button class="btn-delete" id="deleteBtn">
             <span>🗑️</span>
             <span>Delete Min</span>
@@ -29,45 +33,55 @@
             <span>Clear All</span>
           </button>
         </div>
+
+        <div class="animation-controls" id="animationControls">
+          <button class="btn-play" id="playBtn">
+            <span>▶️</span>
+            <span>Play</span>
+          </button>
+          <button class="btn-pause" id="pauseBtn">
+            <span>⏸️</span>
+            <span>Pause</span>
+          </button>
+          <button class="btn-step" id="stepBtn">
+            <span>⏭️</span>
+            <span>Next Step</span>
+          </button>
+          <button class="btn-fast" id="fastForwardBtn">
+            <span>⏩</span>
+            <span>1x Speed</span>
+          </button>
+        </div>
+
         <div class="operation-status" id="operationStatus"></div>
         <div class="step-description" id="stepDescription"></div>
       </div>
 
-      <div class="visualizations">
-        <div class="viz-panel">
-          <h2 class="viz-title">Array Representation</h2>
-          <div class="array-container" id="arrayContainer">
-            <div class="empty-state">Heap is empty</div>
+      <div class="main-content">
+        <div class="left-section">
+          <div class="array-section">
+            <h2 class="section-title">Array Representation</h2>
+            <div class="array-container" id="arrayContainer">
+              <div class="empty-state">Heap is empty</div>
+            </div>
+          </div>
+
+          <div class="tree-section">
+            <h2 class="section-title">Binary Tree View</h2>
+            <div class="tree-container" id="treeContainer">
+              <div class="empty-state">Heap is empty</div>
+            </div>
           </div>
         </div>
 
-        <div class="viz-panel">
-          <h2 class="viz-title">Binary Tree View</h2>
-          <div class="tree-container" id="treeContainer">
-            <div class="empty-state">Heap is empty</div>
+        <div class="pseudocode-panel">
+          <h2 class="pseudocode-title">Pseudocode</h2>
+          <div class="pseudocode-content" id="pseudocodeContainer">
+            <div class="pseudocode-line comment">
+              // Waiting for operation...
+            </div>
           </div>
         </div>
-      </div>
-
-      <div class="info-panel">
-        <h3 class="info-title">Heap Properties:</h3>
-        <ul class="info-list">
-          <li>
-            • <strong>Min-Heap:</strong> Parent nodes are always smaller than
-            their children
-          </li>
-          <li>
-            • <strong>Insert:</strong> Add to end, then heapify up (bubble up)
-          </li>
-          <li>
-            • <strong>Delete-Min:</strong> Remove root, move last element to
-            root, then heapify down
-          </li>
-          <li>
-            • <strong>Array Indices:</strong> Parent(i) = ⌊(i-1)/2⌋, Left(i) =
-            2i+1, Right(i) = 2i+2
-          </li>
-        </ul>
       </div>
     </div>
     <script src="script.js"></script>
