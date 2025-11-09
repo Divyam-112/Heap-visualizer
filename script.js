@@ -2,6 +2,7 @@ let heap = [];
 let animating = false;
 let paused = false;
 let highlightedIndices = [];
+let swappingIndices = [];
 let animationSteps = [];
 let currentStepIndex = 0;
 let currentOperation = "";
@@ -81,12 +82,21 @@ const swap = (arr, i, j) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const recordStep = (arr, highlights, desc, pseudoLine) => {
+const recordStep = (
+  arr,
+  highlights,
+  desc,
+  pseudoLine,
+  swapPair = null,
+  preSwap = false
+) => {
   return {
     heap: [...arr],
     highlights: [...highlights],
     description: desc,
     pseudoLine: pseudoLine,
+    swapPair: swapPair,
+    preSwap: preSwap,
   };
 };
 
@@ -117,20 +127,24 @@ function heapifyUp(arr, index, steps) {
   );
 
   if (arr[index] < arr[parentIdx]) {
+    // Show pre-swap state with animation
     steps.push(
       recordStep(
         arr,
         [index, parentIdx],
         `${arr[index]} < ${arr[parentIdx]}, swapping...`,
-        "heapup-4"
+        "heapup-4",
+        [index, parentIdx],
+        true
       )
     );
     swap(arr, index, parentIdx);
+    // Show post-swap state
     steps.push(
       recordStep(
         arr,
         [parentIdx],
-        `Swapped! Continue heapifying up`,
+        `Swapped! ${arr[parentIdx]} moved up`,
         "heapup-5"
       )
     );
@@ -222,20 +236,24 @@ function heapifyDown(arr, index, steps) {
   );
 
   if (smallest !== index) {
+    // Show pre-swap state with animation
     steps.push(
       recordStep(
         arr,
         [index, smallest],
         `Swapping ${arr[index]} and ${arr[smallest]}`,
-        "heapdown-9"
+        "heapdown-9",
+        [index, smallest],
+        true
       )
     );
     swap(arr, index, smallest);
+    // Show post-swap state
     steps.push(
       recordStep(
         arr,
         [smallest],
-        `Continue heapifying down from ${smallest}`,
+        `Swapped! ${arr[smallest]} moved down`,
         "heapdown-10"
       )
     );
@@ -313,19 +331,64 @@ async function nextStep() {
 
 async function showStep(index) {
   const step = animationSteps[index];
-  heap = step.heap;
-  highlightedIndices = step.highlights;
-  stepDescription.textContent = `Step ${index + 1}/${animationSteps.length}: ${
-    step.description
-  }`;
-  renderPseudocode(currentOperation, step.pseudoLine);
-  render();
+
+  // For pre-swap steps, show old array with swap animation
+  if (step.preSwap && step.swapPair && step.swapPair.length === 2) {
+    // Show the array BEFORE swap with animation
+    const prevStep = index > 0 ? animationSteps[index - 1] : step;
+    heap = prevStep.heap;
+    highlightedIndices = step.highlights;
+    swappingIndices = step.swapPair;
+    stepDescription.textContent = `Step ${index + 1}/${
+      animationSteps.length
+    }: ${step.description}`;
+    renderPseudocode(currentOperation, step.pseudoLine);
+    render();
+
+    // Force a reflow to ensure SVG is rendered before animation starts
+    void treeContainer.offsetHeight;
+
+    await sleep(1200); // Wait for swap animation (1.2s)
+
+    // After animation completes, clear swapping indices but keep old heap
+    // The visual state already shows the swapped result from animation
+    // The heap will be updated in the next step (post-swap step)
+    swappingIndices = [];
+    highlightedIndices = step.highlights;
+    // Don't update heap or re-render - animation already shows final state visually
+  } else {
+    // Normal step - check if this is a post-swap step that immediately follows a pre-swap step
+    const prevStep = index > 0 ? animationSteps[index - 1] : null;
+    if (prevStep && prevStep.preSwap) {
+      // This is a post-swap step immediately after a pre-swap step
+      // The visual state is already correct from the animation, so update heap silently
+      heap = step.heap;
+      highlightedIndices = step.highlights;
+      swappingIndices = [];
+      stepDescription.textContent = `Step ${index + 1}/${
+        animationSteps.length
+      }: ${step.description}`;
+      renderPseudocode(currentOperation, step.pseudoLine);
+      // Don't re-render - animation already shows final state with correct values
+    } else {
+      // Normal step
+      heap = step.heap;
+      highlightedIndices = step.highlights;
+      swappingIndices = [];
+      stepDescription.textContent = `Step ${index + 1}/${
+        animationSteps.length
+      }: ${step.description}`;
+      renderPseudocode(currentOperation, step.pseudoLine);
+      render();
+    }
+  }
 }
 
 function finishAnimation() {
   animating = false;
   paused = false;
   highlightedIndices = [];
+  swappingIndices = [];
   operationStatus.innerHTML = "";
   stepDescription.textContent = "";
   animationControls.classList.remove("active");
@@ -401,15 +464,30 @@ async function handleDeleteMin() {
   );
 
   if (newHeap.length > 1) {
+    // Show pre-swap animation - swap root and last element
+    const rootValue = newHeap[0];
+    const lastValue = newHeap[newHeap.length - 1];
     steps.push(
       recordStep(
         newHeap,
         [0, newHeap.length - 1],
-        `Move last element ${newHeap[newHeap.length - 1]} to root`,
+        `Swapping root ${rootValue} with last element ${lastValue}`,
+        "delete-2",
+        [0, newHeap.length - 1],
+        true
+      )
+    );
+    // Actually swap the values
+    swap(newHeap, 0, newHeap.length - 1);
+    // Show after swap
+    steps.push(
+      recordStep(
+        newHeap,
+        [0],
+        `Swapped! Last element now has root's value`,
         "delete-2"
       )
     );
-    newHeap[0] = newHeap[newHeap.length - 1];
   }
 
   steps.push(recordStep(newHeap, [], `Remove last element`, "delete-3"));
@@ -443,6 +521,7 @@ function handleClear() {
   if (animating) return;
   heap = [];
   highlightedIndices = [];
+  swappingIndices = [];
   operationStatus.innerHTML = "";
   stepDescription.textContent = "";
   animationSteps = [];
@@ -477,18 +556,54 @@ function renderArray() {
     return;
   }
 
-  arrayContainer.innerHTML = heap
-    .map(
-      (value, index) => `
-                <div class="array-item ${
-                  highlightedIndices.includes(index) ? "highlighted" : ""
-                }">
-                    <div>${value}</div>
-                    <div class="index">[${index}]</div>
-                </div>
-            `
-    )
+  // Calculate positions for swapping animation
+  const itemWidth = 60; // width of array-item
+  const gap = 8; // gap between items
+  const itemSpacing = itemWidth + gap;
+
+  let html = "";
+
+  html += heap
+    .map((value, index) => {
+      const isHighlighted = highlightedIndices.includes(index);
+      const isSwapping = swappingIndices.includes(index);
+
+      let classes = `array-item`;
+      if (isHighlighted && !isSwapping) {
+        classes += " highlighted";
+      }
+
+      // Calculate swap distance if this element is being swapped
+      let swapDistance = 0;
+      let swapDirection = 1;
+      if (isSwapping && swappingIndices.length === 2) {
+        const [idx1, idx2] = swappingIndices;
+        const distance = (idx2 - idx1) * itemSpacing;
+        if (index === idx1) {
+          swapDistance = distance;
+          swapDirection = 1;
+        } else if (index === idx2) {
+          swapDistance = -distance;
+          swapDirection = -1;
+        }
+      }
+
+      const style = isSwapping
+        ? `--swap-distance: ${swapDistance}px; --swap-direction: ${swapDirection};`
+        : "";
+
+      return `
+                    <div class="${classes} ${
+        isSwapping ? "swapping" : ""
+      }" style="${style}" data-index="${index}">
+                        <div>${value}</div>
+                        <div class="index">[${index}]</div>
+                    </div>
+                `;
+    })
     .join("");
+
+  arrayContainer.innerHTML = html;
 }
 
 function getNodePosition(index, totalLevels) {
@@ -534,8 +649,10 @@ function renderTree() {
     }
   }
 
-  // Draw nodes
+  // Draw static nodes first (non-swapping)
   for (let i = 0; i < heap.length; i++) {
+    if (swappingIndices.includes(i)) continue;
+
     const pos = getNodePosition(i, levels);
     const isHighlighted = highlightedIndices.includes(i);
     const fillColor = isHighlighted ? "#fbbf24" : "#3b82f6";
@@ -557,8 +674,181 @@ function renderTree() {
                 `;
   }
 
+  // Draw swapping nodes with animation along the line joining them
+  if (swappingIndices.length === 2) {
+    const [idx1, idx2] = swappingIndices;
+    const pos1 = getNodePosition(idx1, levels);
+    const pos2 = getNodePosition(idx2, levels);
+
+    // Get values - use SWAPPED values so they're correct when nodes reach final positions
+    // Node moving from idx1 to idx2 should show value that will be at idx2 (which is heap[idx1])
+    // Node moving from idx2 to idx1 should show value that will be at idx1 (which is heap[idx2])
+    const val1 = heap[idx1]; // This value will be at idx2 after swap
+    const val2 = heap[idx2]; // This value will be at idx1 after swap
+
+    // Calculate the line joining the two nodes
+    const dx = pos2.x - pos1.x;
+    const dy = pos2.y - pos1.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Calculate midpoint and arc height for smooth curve (slight arc for visual appeal)
+    const midX = (pos1.x + pos2.x) / 2;
+    const midY = (pos1.y + pos2.y) / 2;
+    const arcHeight = Math.min(30, distance * 0.25); // Smaller arc for more direct path
+
+    // Calculate perpendicular direction for arc (perpendicular to the line)
+    const perpX = distance > 0 ? -dy / distance : 0;
+    const perpY = distance > 0 ? dx / distance : 0;
+
+    // Arc midpoint (slightly raised above the line)
+    const arcMidX = midX + perpX * arcHeight;
+    const arcMidY = midY + perpY * arcHeight;
+
+    // Animation keyframes: nodes move along the line with slight arc
+    // Node 1 moving to position 2 along the path
+    svg += `
+                    <g>
+                        <circle cx="${pos1.x}" cy="${
+      pos1.y
+    }" r="24" fill="#fbbf24" stroke="#f59e0b" stroke-width="3" opacity="1">
+                            <animate attributeName="cx" 
+                                values="${pos1.x};${
+      (pos1.x + arcMidX) / 2
+    };${arcMidX};${(arcMidX + pos2.x) / 2};${pos2.x}" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze" 
+                                calcMode="spline" 
+                                keySplines="0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1"/>
+                            <animate attributeName="cy" 
+                                values="${pos1.y};${
+      (pos1.y + arcMidY) / 2
+    };${arcMidY};${(arcMidY + pos2.y) / 2};${pos2.y}" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze" 
+                                calcMode="spline" 
+                                keySplines="0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1"/>
+                            <animate attributeName="r" 
+                                values="24;26;30;26;24" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze"/>
+                        </circle>
+                        <text x="${pos1.x}" y="${
+      pos1.y
+    }" text-anchor="middle" dy="0.35em" fill="#1f2937" font-size="16" font-weight="bold">
+                            <animate attributeName="x" 
+                                values="${pos1.x};${
+      (pos1.x + arcMidX) / 2
+    };${arcMidX};${(arcMidX + pos2.x) / 2};${pos2.x}" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze" 
+                                calcMode="spline" 
+                                keySplines="0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1"/>
+                            <animate attributeName="y" 
+                                values="${pos1.y};${
+      (pos1.y + arcMidY) / 2
+    };${arcMidY};${(arcMidY + pos2.y) / 2};${pos2.y}" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze" 
+                                calcMode="spline" 
+                                keySplines="0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1"/>
+                            ${val1}
+                        </text>
+                    </g>
+                `;
+
+    // Node 2 moving to position 1 along the path (opposite direction)
+    svg += `
+                    <g>
+                        <circle cx="${pos2.x}" cy="${
+      pos2.y
+    }" r="24" fill="#fbbf24" stroke="#f59e0b" stroke-width="3" opacity="1">
+                            <animate attributeName="cx" 
+                                values="${pos2.x};${
+      (pos2.x + arcMidX) / 2
+    };${arcMidX};${(arcMidX + pos1.x) / 2};${pos1.x}" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze" 
+                                calcMode="spline" 
+                                keySplines="0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1"/>
+                            <animate attributeName="cy" 
+                                values="${pos2.y};${
+      (pos2.y + arcMidY) / 2
+    };${arcMidY};${(arcMidY + pos1.y) / 2};${pos1.y}" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze" 
+                                calcMode="spline" 
+                                keySplines="0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1"/>
+                            <animate attributeName="r" 
+                                values="24;26;30;26;24" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze"/>
+                        </circle>
+                        <text x="${pos2.x}" y="${
+      pos2.y
+    }" text-anchor="middle" dy="0.35em" fill="#1f2937" font-size="16" font-weight="bold">
+                            <animate attributeName="x" 
+                                values="${pos2.x};${
+      (pos2.x + arcMidX) / 2
+    };${arcMidX};${(arcMidX + pos1.x) / 2};${pos1.x}" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze" 
+                                calcMode="spline" 
+                                keySplines="0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1"/>
+                            <animate attributeName="y" 
+                                values="${pos2.y};${
+      (pos2.y + arcMidY) / 2
+    };${arcMidY};${(arcMidY + pos1.y) / 2};${pos1.y}" 
+                                keyTimes="0;0.3;0.5;0.7;1" 
+                                dur="1.2s" 
+                                fill="freeze" 
+                                calcMode="spline" 
+                                keySplines="0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1;0.25 0.1 0.25 1"/>
+                            ${val2}
+                        </text>
+                    </g>
+                `;
+
+    // Draw index labels at fixed positions (they stay at original positions)
+    svg += `<text x="${pos1.x}" y="${
+      pos1.y + 38
+    }" text-anchor="middle" fill="#94a3b8" font-size="12">[${idx1}]</text>`;
+    svg += `<text x="${pos2.x}" y="${
+      pos2.y + 38
+    }" text-anchor="middle" fill="#94a3b8" font-size="12">[${idx2}]</text>`;
+  }
+
   svg += "</svg>";
   treeContainer.innerHTML = svg;
+
+  // Ensure animations start properly for swapping nodes
+  if (swappingIndices.length === 2) {
+    // Small delay to ensure SVG is fully rendered
+    setTimeout(() => {
+      const svgElement = treeContainer.querySelector("svg");
+      if (svgElement) {
+        const animations = svgElement.querySelectorAll("animate");
+        animations.forEach((anim) => {
+          try {
+            // Try to restart animation
+            if (anim.beginElement) {
+              anim.beginElement();
+            }
+          } catch (e) {
+            // If beginElement doesn't work, animation should start automatically
+          }
+        });
+      }
+    }, 10);
+  }
 }
 
 function render() {
